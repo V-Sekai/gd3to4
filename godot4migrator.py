@@ -38,9 +38,12 @@ replacements = [
     ('PoolVector2Array', 'PackedVector2Array'),
     ('PoolVector3Array', 'PackedVector3Array'),
     ('PoolColorArray', 'PackedColorArray'),
-    ('SpatialMaterial', 'StandardMaterial3D'),
     (re.compile(r'([\w.]+)\s*\.\s*xform_inv\s*([^)]*)'), r'((\2) * (\1))'),
     ('\\.xform', '*'),
+    ('SpatialMaterial', 'StandardMaterial3D'),
+    ('Node3DMaterial', 'StandardMaterial3D'), # Due to previous runs of the conversion tool.
+    ('instance', 'instantiate'),
+    ('BoneAttachment', 'BoneAttachment3D'),
     ]
 
 
