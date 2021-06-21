@@ -32,7 +32,10 @@ replacements = [
     ('PoolVector3Array', 'PackedVector3Array'),
     ('PoolColorArray', 'PackedColorArray'),
     ('Node3DMaterial', 'StandardMaterial3D'),
-    #('World', 'World3D'),
+    ('Quat', 'Quaternion'),
+    ('Transform', 'Transform3D'),
+    ('Reference', 'RefCounted'),
+    ('instance', 'instantiate'),
     ]
 
 def findcomment(fline):
