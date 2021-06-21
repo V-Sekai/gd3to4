@@ -36,6 +36,7 @@ replacements = [
     ('Transform', 'Transform3D'),
     ('Reference', 'RefCounted'),
     ('instance', 'instantiate'),
+    ('BoneAttachment', 'BoneAttachment3D'),
     ]
 
 def findcomment(fline):
