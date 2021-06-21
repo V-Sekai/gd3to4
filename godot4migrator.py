@@ -3,10 +3,14 @@ import sys
 import re
 
 replacements = [
+    ('Transform', 'Transform3D'),
+    ('Reference', 'RefCounted'),
+    ('Quat', 'Quaternion'),
     ('Spatial', 'Node3D'),
     ('Sprite', 'Sprite2D'),
     ('Camera', 'Camera3D'),
     ('Skeleton', 'Skeleton3D'),
+    ('Texture', 'Texture2D'),
     ('VisualInstance', 'VisualInstance3D'),
     ('GeometryInstance', 'GeometryInstance3D'),
     ('Skeleton3DIK', 'SkeletonIK3D'),
@@ -23,17 +27,29 @@ replacements = [
     ('SpringArm', 'SpringArm3D'),
     ('Shape', 'Shape3D'),
     ('Particles', 'Particles3D'),
+    ('World', 'World3D'),
     ('linear_interpolate', 'lerp'),
+    ('empty', 'is_empty'),
+    ('get_rotation_quat', 'get_rotation_quaternion'),
     ('PoolByteArray', 'PackedByteArray'),
-    ('PoolIntArray', 'PackedInt32Array'), # FIXME: 64?
+    ('PoolIntArray', 'PackedInt64Array'), # FIXME: 64?
     ('PoolRealArray', 'PackedFloat32Array'), # FIXME: 64?
     ('PoolStringArray', 'PackedStringArray'),
     ('PoolVector2Array', 'PackedVector2Array'),
     ('PoolVector3Array', 'PackedVector3Array'),
     ('PoolColorArray', 'PackedColorArray'),
-    ('Node3DMaterial', 'StandardMaterial3D'),
-    #('World', 'World3D'),
+    ('SpatialMaterial', 'StandardMaterial3D'),
+    (re.compile(r'([\w.]+)\s*\.\s*xform_inv\s*([^)]*)'), r'((\2) * (\1))'),
+    ('\\.xform', '*'),
     ]
+
+
+re_type = type(re.compile('_'))
+replacement_re = [
+    (re.compile("\\b" + replacements[i][0] + "\\b"), replacements[i][1], False)
+    if type(replacements[i][0]) != re_type else
+    (replacements[i][0], replacements[i][1], True)
+    for i in range(len(replacements))]
 
 def findcomment(fline):
     ll = len(fline)
@@ -76,86 +92,87 @@ NEW:
 
 # FIXME: We need to find `extends "res://....gd"` bits and convert those to be the class_name from the extended file instead of the filename!!
 
+OUTPUT_DIR = "../gd4out"
+
+def process_lines(flines, addlines):
+    extendsidx = -1
+    for linenum in range(len(flines)):
+        fline = flines[linenum]
+        nl = fline[len(fline.rstrip()):]
+        endlineidx = findcomment(fline)
+        endline = fline[endlineidx:]
+        fline = fline[:endlineidx]
+        if fline.strip() == 'tool':
+            addlines.append('@' + fline + endline)
+            fline = ''
+            endline = ''
+        fline = YIELD_PATTERN.sub("await \\1", fline)
+        setter = getter = None
+        exportfline = fline
+        matchres = SETGET_PATTERN.match(fline)
+        if matchres:
+            exportfline = matchres[1]
+            setter = matchres[2]
+            getter = matchres[3]
+        matchres = EXPORT_PAREN.match(exportfline)
+        if matchres:
+            whitespace = matchres[1]
+            exportstatement = matchres[2]
+            typ = matchres[3]
+            vardecl = matchres[4]
+            typdecl = matchres[5]
+            defl = matchres[6]
+            # print(repr(defl) + "==========", file=sys.stderr)
+            fline = whitespace
+            if exportstatement:
+                fline += "@" + exportstatement
+            fline += vardecl
+            if typdecl:
+                fline += typdecl
+                if typ:
+                    endline += " # (" + typ + ")"
+            elif typ:
+                # What to do if both??
+                fline += ": " + typ + " "
+            if defl:
+                fline += defl
+            if setter or getter:
+                fline += ":" + nl
+                if setter:
+                    fline += "    set = " + setter
+                    if getter:
+                        fline += "," + nl
+                    else:
+                        fline += nl
+                if getter:
+                    fline += "    get = " + getter + nl
+        if 'extends' in fline and extendsidx == -1:
+            extendsidx = linenum
+        elif fline.startswith('class_name'):
+            flines[extendsidx] = fline.strip() + ' ' + flines[extendsidx]
+            fline = ''
+        for k, v, is_special in replacement_re:
+            #print("Take %s and sub with %s in %s" % (k, v, fline), file=sys.stderr)
+            fline = k.sub(v, fline)
+            #print("Subbed %s" % (fline), file=sys.stderr)
+            #if k in fline:
+            #    fline = fline.replace(k, v)
+        flines[linenum] = fline + endline
+
+
 def process_file(fname):
     if not fname.endswith('.gd'):
         return
-    print ('PROCESSING %s' % fname)
-    save_backup = False
     try:
-        flines = open('../groupxbak/' + fname + '.bak', 'rt', newline='').readlines()
+        os.makedirs(OUTPUT_DIR + '/' + os.path.dirname(fname))
     except:
-        flines = open(fname, 'rt', newline='').readlines()
-        save_backup = True
+        pass
+    print ('PROCESSING %s' % fname)
+    flines = open(fname, 'rt', newline='').readlines()
     addlines = []
-    extendsidx = -1
-    if True:
-        print ('actually doing %s' % fname)
-        for linenum in range(len(flines)):
-            fline = flines[linenum]
-            nl = fline[len(fline.rstrip()):]
-            endlineidx = findcomment(fline)
-            endline = fline[endlineidx:]
-            fline = fline[:endlineidx]
-            if fline.strip() == 'tool':
-                addlines.append('@' + fline + endline)
-                fline = ''
-                endline = ''
-            fline = YIELD_PATTERN.sub("await \\1", fline)
-            setter = getter = None
-            exportfline = fline
-            matchres = SETGET_PATTERN.match(fline)
-            if matchres:
-                exportfline = matchres[1]
-                setter = matchres[2]
-                getter = matchres[3]
-            matchres = EXPORT_PAREN.match(exportfline)
-            if matchres:
-                whitespace = matchres[1]
-                exportstatement = matchres[2]
-                typ = matchres[3]
-                vardecl = matchres[4]
-                typdecl = matchres[5]
-                defl = matchres[6]
-                print(repr(defl) + "==========")
-                fline = whitespace
-                if exportstatement:
-                    fline += "@" + exportstatement
-                fline += vardecl
-                if typdecl:
-                    fline += typdecl
-                    if typ:
-                        endline += " # (" + typ + ")"
-                elif typ:
-                    # What to do if both??
-                    fline += ": " + typ + " "
-                if defl:
-                    fline += defl
-                if setter or getter:
-                    fline += ":" + nl
-                    if setter:
-                        fline += "    set = " + setter
-                        if getter:
-                            fline += "," + nl
-                        else:
-                            fline += nl
-                    if getter:
-                        fline += "    get = " + getter + nl
-            if 'extends' in fline and extendsidx == -1:
-                extendsidx = linenum
-            elif fline.startswith('class_name'):
-                flines[extendsidx] = fline.strip() + ' ' + flines[extendsidx]
-                fline = ''
-            for k, v in replacements:
-                if k in fline:
-                    fline = fline.replace(k, v)
-            flines[linenum] = fline + endline
-    if save_backup:
-        try:
-            os.makedirs('../groupxbak/' + os.path.dirname(fname))
-        except:
-            pass
-        os.rename(fname, '../groupxbak/' + fname + '.bak')
-    wf = open(fname, 'wt', newline='')
+    print ('actually doing %s' % fname)
+    process_lines(flines, addlines)
+    wf = open(OUTPUT_DIR + "/" + fname, 'wt', newline='')
     wf.writelines(addlines)
     wf.writelines(flines)
     wf.close()
@@ -172,3 +189,9 @@ def process_path(path):
 if __name__=='__main__':
     for dr in sys.argv[1:]:
         process_path(dr)
+    if len(sys.argv) <= 1:
+        flines = sys.stdin.readlines()
+        addlines = []
+        process_lines(flines, addlines)
+        sys.stdout.writelines(addlines)
+        sys.stdout.writelines(flines)
