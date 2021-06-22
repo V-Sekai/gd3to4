@@ -24,6 +24,7 @@ replacements = [
     ('RayShape', 'RayShape3D'),
     ('Joint', 'Joint3D'),
     ('Light', 'Light3D'),
+    ('is_valid_integer', 'is_valid_int'),
     ('SpringArm', 'SpringArm3D'),
     ('Shape', 'Shape3D'),
     ('Particles', 'Particles3D'),
@@ -44,14 +45,25 @@ replacements = [
     ('Node3DMaterial', 'StandardMaterial3D'), # Due to previous runs of the conversion tool.
     ('instance', 'instantiate'),
     ('BoneAttachment', 'BoneAttachment3D'),
+    ('MODE_SAVE_FILE', 'FILE_MODE_SAVE_FILE'),
+    ('MODE_OPEN_FILE', 'FILE_MODE_OPEN_FILE'),
+    ('MODE_OPEN_FILES', 'FILE_MODE_OPEN_FILE'),
+    ('MODE_OPEN_DIR', 'FILE_MODE_OPEN_DIR'),
+    ('MODE_OPEN_ANY', 'FILE_MODE_OPEN_ANY'),
+    ('get_editor_viewport', 'get_viewport'),
+    ('get_icon', 'get_theme_icon'),
+    ('popup_centered_minsize', 'popup_centered_clamped'),
+    (re.compile(r'\bfunc(\s+)_init(\s*)\((\s*)\)[^:]*:'), r'func\1_init\2(\3):'),
+    (re.compile(r'\bfunc(\s+)handles\b'), r'func\1_handles', ['EditorPlugin']),
+    (re.compile(r'\bfunc(\s+)get_name\b'), r'func\1_get_plugin_name', ['EditorPlugin']),
+    (re.compile(r'\bfunc(\s+)edit\b'), r'func\1_edit', ['EditorPlugin']),
+    (re.compile(r'\bfunc(\s+)make_visible\b'), r'func\1_make_visible', ['EditorPlugin']),
     ]
 
 
 re_type = type(re.compile('_'))
 replacement_re = [
-    (re.compile("\\b" + replacements[i][0] + "\\b"), replacements[i][1], False)
-    if type(replacements[i][0]) != re_type else
-    (replacements[i][0], replacements[i][1], True)
+    (re.compile("\\b" + replacements[i][0] + "\\b") if type(replacements[i][0]) != re_type else replacements[i][0], replacements[i][1], replacements[i][2] if len(replacements[i]) > 2 else [], type(replacements[i][0]) == re_type)
     for i in range(len(replacements))]
 
 def findcomment(fline):
@@ -99,6 +111,7 @@ OUTPUT_DIR = "../gd4out"
 
 def process_lines(flines, addlines):
     extendsidx = -1
+    extends_class = ''
     for linenum in range(len(flines)):
         fline = flines[linenum]
         nl = fline[len(fline.rstrip()):]
@@ -151,15 +164,13 @@ def process_lines(flines, addlines):
                     fline += "    get = " + getter + nl
         if 'extends' in fline and extendsidx == -1:
             extendsidx = linenum
+            extends_class = fline[fline.find('extends') + 7:].strip()
         elif fline.startswith('class_name'):
             flines[extendsidx] = fline.strip() + ' ' + flines[extendsidx]
             fline = ''
-        for k, v, is_special in replacement_re:
-            #print("Take %s and sub with %s in %s" % (k, v, fline), file=sys.stderr)
-            fline = k.sub(v, fline)
-            #print("Subbed %s" % (fline), file=sys.stderr)
-            #if k in fline:
-            #    fline = fline.replace(k, v)
+        for k, v, classes, is_special in replacement_re:
+            if not classes or extends_class in classes:
+                fline = k.sub(v, fline)
         flines[linenum] = fline + endline
 
 
