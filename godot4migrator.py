@@ -3,6 +3,8 @@ import sys
 import re
 
 replacements = [
+    ('addons/gdutil/', 'addons/gd_util/'),
+    (re.compile(r'\bget_node(\s+)\((\s+)\@'), r'get_node\1(\2^'),
     ('Transform', 'Transform3D'),
     ('Reference', 'RefCounted'),
     ('Quat', 'Quaternion'),
@@ -27,7 +29,7 @@ replacements = [
     ('is_valid_integer', 'is_valid_int'),
     ('SpringArm', 'SpringArm3D'),
     ('Shape', 'Shape3D'),
-    ('Particles', 'Particles3D'),
+    ('Particles', 'GPUParticles3D'),
     ('World', 'World3D'),
     ('linear_interpolate', 'lerp'),
     ('empty', 'is_empty'),
@@ -53,11 +55,119 @@ replacements = [
     ('get_editor_viewport', 'get_viewport'),
     ('get_icon', 'get_theme_icon'),
     ('popup_centered_minsize', 'popup_centered_clamped'),
-    (re.compile(r'\bfunc(\s+)_init(\s*)\((\s*)\)[^:]*:'), r'func\1_init\2(\3):'),
+    (re.compile(r'\bfunc(\s+)_init(\s*)\(([^)]*)\)[^:]*:'), r'func\1_init\2(\3):'),
     (re.compile(r'\bfunc(\s+)handles\b'), r'func\1_handles', ['EditorPlugin']),
     (re.compile(r'\bfunc(\s+)get_name\b'), r'func\1_get_plugin_name', ['EditorPlugin']),
     (re.compile(r'\bfunc(\s+)edit\b'), r'func\1_edit', ['EditorPlugin']),
     (re.compile(r'\bfunc(\s+)make_visible\b'), r'func\1_make_visible', ['EditorPlugin']),
+    (re.compile(r"\byield *\((.*?)(\s*,\s*)*[\"'](.*)[\"']\)\s*$"), "await \\1.\\3"),
+    (re.compile(r"\byield *\((.*?)\)\s*$|\byield (.*)$"), "await \\1\\2"),
+    (re.compile(r"\b(connect|disconnect|is_connected)(\s*)\((\s*)([^,]*),(\s*)([^,]*),([^,]*)([,)])"), r"\1\2(\3\4,\5Callable(\6,\7)\8"),
+    ('FuncRef\\.new', 'Callable'),
+    ('FuncRef', 'Callable'),
+    ('funcref', 'Callable'),
+    ('call_func', 'call'),
+    ('TYPE_REAL', 'TYPE_FLOAT'),
+    ('TYPE_QUAT', 'TYPE_QUATERNION'),
+	('NavigationServer', 'NavigationServer3D'),
+	('Navigation2DServer', 'NavigationServer2D'),
+	('Path', 'Path3D'),
+	('PhysicsServer', 'PhysicsServer3D'),
+	('PhysicsDirectBodyState', 'PhysicsDirectBodyState3D'),
+	('PhysicsDirectSpaceState', 'PhysicsDirectSpaceState3D'),
+	('PhysicsShapeQueryParameters', 'PhysicsShapeQueryParameters3D'),
+	('PhysicsShapeQueryResult', 'PhysicsShapeQueryResult3D'),
+	(re.compile(r'\bARVR'), 'XR'),
+    (re.compile('(\s+)\.'), '\1super.'), ## Questionable.
+    ('make_convex_from_brothers', 'make_convex_from_siblings'),
+    ('rand_range', 'randf_range'),
+    ('stepify', 'snapped'),
+    ('track_remove_key_at_position', 'track_remove_key_at_time'),
+    ('translation', 'position'),
+	('onready', '@onready'),
+	('AnimatedTexture2D', 'AnimatedTexture'),
+	('AnimationTreePlayer', 'AnimationTree'),
+	('Area', 'Area3D'),
+	('AtlasTexture2D', 'AtlasTexture'),
+	('BakedLightmap', 'LightmapGI'),
+	('BitmapFont', 'Font'),
+	('Bone', 'Bone3D'),
+	('BoxShape', 'BoxShape3D'),
+	('BulletPhysicsDirectBodyState', 'BulletPhysicsDirectBodyState3D'),
+	('BulletPhysicsServer', 'BulletPhysicsServer3D'),
+	('ButtonList', 'MouseButton'),
+	('CSGBox', 'CSGBox3D'),
+	('CSGCombiner', 'CSGCombiner3D'),
+	('CSGCylinder', 'CSGCylinder3D'),
+	('CSGMesh', 'CSGMesh3D'),
+	('CSGPolygon', 'CSGPolygon3D'),
+	('CSGSphere', 'CSGSphere3D'),
+	('CSGTorus', 'CSGTorus3D'),
+	('CollisionObject', 'CollisionObject3D'),
+	('CollisionPolygon', 'CollisionPolygon3D'),
+	('CollisionShape', 'CollisionShape3D'),
+	('ConcavePolygonShape', 'ConcavePolygonShape3D'),
+	('ConvexPolygonShape', 'ConvexPolygonShape3D'),
+	('CubeMesh', 'BoxMesh'),
+	('CylinderShape', 'CylinderShape3D'),
+	('DynamicFont', 'Font'),
+	('EditorSpatialGizmo', 'EditorNode3DGizmo'),
+	('GIProbe', 'VoxelGI'),
+	('HeightMapShape', 'HeightMapShape3D'),
+	('ImmediateGeometry', 'ImmediateGeometry3D'),
+	('IP_Unix', 'IPUnix'),
+	('Joint', 'Joint3D'),
+	('KinematicCollision', 'KinematicCollision3D'),
+	('Navigation2D', 'Node2D'),
+	('Navigation3D', 'Node3D'),
+	('NavigationAgent', 'NavigationAgent3D'),
+	('NavigationMeshInstance3D', 'NavigationRegion3D'),
+	('NavigationObstacle', 'NavigationObstacle3D'),
+	('NavigationPolygonInstance', 'NavigationRegion3D'),
+	('NoiseTexture2D', 'NoiseTexture'),
+	('PathFollow', 'PathFollow3D'),
+	('PAUSE_MODE_INHERIT', 'PROCESS_MODE_INHERIT'),
+	('PAUSE_MODE_STOP', 'PROCESS_MODE_PAUSABLE'),
+	('PAUSE_MODE_PROCESS', 'PROCESS_MODE_ALWAYS'),
+	('Physics2DDirectBodyStateSW', 'PhysicsDirectBodyState2DSW'),
+	('Physics2DDirectBodyState', 'PhysicsDirectBodyState2D'),
+	('Physics2DDirectSpaceState', 'PhysicsDirectSpaceState2D'),
+	('Physics2DServer', 'PhysicsServer2D'),
+	('Physics2DShapeQueryParameters', 'PhysicsShapeQueryParameters2D'),
+	('Physics2DShapeQueryResult', 'PhysicsShapeQueryResult2D'),
+	('Physics2DTestMotionResult', 'PhysicsTestMotionResult2D'),
+	('PhysicsBody', 'PhysicsBody3D'),
+	('ProceduralSky', 'Sky'),
+	('ProximityGroup', 'ProximityGroup3D'),
+	('RemoteTransform', 'RemoteTransform3D'),
+	('ShortCut', 'Shortcut'),
+	('SoftBody', 'SoftBody3D'),
+	('SpatialVelocityTracker', 'VelocityTracker3D'),
+	('SphereShape', 'SphereShape3D'),
+	('StaticBody', 'StaticBody3D'),
+	('TCP_Server', 'TCPServer'),
+	('ToolButton', 'Button'),
+	('VehicleBody', 'VehicleBody3D'),
+	('VehicleWheel', 'VehicleWheel3D'),
+	('Viewport', 'SubViewport'),
+	('SubViewportTexture2D', 'ViewportTexture'),
+	('VisibilityEnabler', 'VisibilityEnabler3D'),
+	('VisibilityNotifier', 'VisibilityNotifier3D'),
+	('VisualServer', 'RenderingServer'),
+	('XRAnchor', 'XRAnchor3D'),
+	('XRController', 'XRController3D'),
+	('XROrigin', 'XROrigin3D'),
+	('YSort', 'Node2D'),
+	('as_normalmap', 'as_normal_map'),
+	('button_release', 'button_released'),
+	('doubleclick', 'double_click'),
+	('pause_mode = 2', 'process_mode = 3'),
+	('pause_mode', 'process_mode'),
+	('tab_close', 'tab_closed'),
+	('tab_hover', 'tab_hovered'),
+	('toplevel', 'top_level'),
+	('zfar', 'far'),
+	('znear', 'near'),
     ]
 
 
@@ -93,15 +203,16 @@ def findcomment(fline):
         i += 1
     return nonwsi
 
+SPECIAL_PATTERN = re.compile("[\'\"\\\\\\[\\]\\(\\)\\{\\}#]")
+
 EXPORT_PAREN = re.compile(r"^( *)(\bexport *)?(?:\(([^)]*)\))?( *var *[^=:]*)(: [^ =]*)?( *=.*)?")
 SETGET_PATTERN = re.compile(r"(.*)\bsetget *([^,]*)(?:, *(.*))?$")
-YIELD_PATTERN = re.compile(r"\byield *\((.*?)(, *[\"'].*[\"'])?\)$|\byield (.*)$")
 '''
 OLD:
 export(Color) var bottom_left_color = Color() setget _set_bottom_left_color
 NEW:
 @export var bottom_left_color : Color = Color():
-	set = _set_bottom_left_color
+\tset = _set_bottom_left_color
 '''
 
 
@@ -109,7 +220,101 @@ NEW:
 
 OUTPUT_DIR = "../gd4out"
 
-def process_lines(flines, addlines):
+def string_enc(s):
+    return SPECIAL_PATTERN.sub(lambda m: (chr(0xef00 | ord(m.group())) if ord(m.group()) <= 0xff else m.group()), s)
+    #print("Do %s to %s" % (s, SPECIAL_PATTERN.sub('X', s)))
+    #return SPECIAL_PATTERN.sub('X', s)
+
+def comment_enc(s):
+    return ''.join((chr(0xef00 + ord(c)) if ord(c) <= 0xff else c) for c in s)
+
+def special_dec(s):
+    return ''.join((chr(0xff & ord(c)) if 0xef00 <= ord(c) <= 0xefff else c) for c in s)
+
+def group_lines(flines):
+    outlines = []
+    cur_line = ''
+    nesting_levels = []
+    idx = 0
+    for xxline in flines:
+        #print(nesting_levels)
+        line = xxline
+        do_continue = False
+        qpos = 0
+        if nesting_levels and (nesting_levels[-1] == '"' or nesting_levels[-1] == "'"):
+            while True:
+                endq = line.find(nesting_levels[-1], qpos)
+                if endq == -1:
+                    line = string_enc(line)
+                    do_continue = True
+                    break
+                qpos = endq + 1
+                bslashcnt = 0
+                while endq > 0 and line[endq - 1] == '\\':
+                    bslashcnt += 1
+                    endq -= 1
+                if bslashcnt % 2 == 0:
+                    line = string_enc(line[:qpos - 1]) + line[qpos - 1:]
+                    nesting_levels.pop()
+                    break
+
+        while not do_continue:
+            next_sym_res = SPECIAL_PATTERN.search(line[idx:], qpos)
+            if next_sym_res == None:
+                break
+            next_sym = next_sym_res[0]
+            qpos = next_sym_res.end()
+            #print("Found next_sym=" + str(next_sym))
+            if next_sym == '#':
+                line = line[:qpos] + comment_enc(line[qpos:-1]) + line[-1:]
+                break
+            if next_sym == '"' or next_sym == "'":
+                while True:
+                    endq = line.find(next_sym, qpos)
+                    if endq == -1:
+                        nesting_levels.append(next_sym)
+                        line = line[:next_sym_res.end()] + string_enc(line[next_sym_res.end():])
+                        #print("Continue: " + str(line))
+                        do_continue = True
+                        break
+                    qpos = endq + 1
+                    bslashcnt = 0
+                    while endq > 0 and line[endq - 1] == '\\':
+                        bslashcnt += 1
+                        endq -= 1
+                    if bslashcnt % 2 == 0:
+                        line = line[:next_sym_res.end()] + string_enc(line[next_sym_res.end():qpos - 1]) + line[qpos - 1:]
+                        #print("Break: %s %d %d %d" % (line, next_sym_res.end() + 1, qpos - 1, len(line)))
+                        break
+                if do_continue:
+                    break
+            if next_sym == '[' or next_sym == '(' or next_sym == '{':
+                nesting_levels.append(next_sym)
+            if next_sym == ']':
+                assert nesting_levels[-1] == '['
+                nesting_levels.pop()
+            if next_sym == ')':
+                assert nesting_levels[-1] == '('
+                nesting_levels.pop()
+            if next_sym == '}':
+                assert nesting_levels[-1] == '{'
+                nesting_levels.pop()
+        if do_continue or nesting_levels:
+            cur_line += line
+        else:
+            outlines.append(cur_line + line)
+            cur_line = ''
+    #print(outlines)
+    if cur_line or nesting_levels:
+        print(repr(cur_line))
+        print(nesting_levels)
+    if cur_line:
+        outlines.append(cur_line)
+    return outlines
+
+def process_lines(flines):
+    flines = group_lines(flines)
+    addlines = []
     extendsidx = -1
     extends_class = ''
     for linenum in range(len(flines)):
@@ -118,11 +323,10 @@ def process_lines(flines, addlines):
         endlineidx = findcomment(fline)
         endline = fline[endlineidx:]
         fline = fline[:endlineidx]
-        if fline.strip() == 'tool':
+        if fline.strip().startswith('tool'):
             addlines.append('@' + fline + endline)
             fline = ''
             endline = ''
-        fline = YIELD_PATTERN.sub("await \\1", fline)
         setter = getter = None
         exportfline = fline
         matchres = SETGET_PATTERN.match(fline)
@@ -146,7 +350,7 @@ def process_lines(flines, addlines):
             if typdecl:
                 fline += typdecl
                 if typ:
-                    endline += " # (" + typ + ")"
+                    fline += " # (" + typ + ")"
             elif typ:
                 # What to do if both??
                 fline += ": " + typ + " "
@@ -155,13 +359,13 @@ def process_lines(flines, addlines):
             if setter or getter:
                 fline += ":" + nl
                 if setter:
-                    fline += "    set = " + setter
+                    fline += "\tset = " + setter
                     if getter:
                         fline += "," + nl
                     else:
                         fline += nl
                 if getter:
-                    fline += "    get = " + getter + nl
+                    fline += "\tget = " + getter + nl
         if 'extends' in fline and extendsidx == -1:
             extendsidx = linenum
             extends_class = fline[fline.find('extends') + 7:].strip()
@@ -172,7 +376,11 @@ def process_lines(flines, addlines):
             if not classes or extends_class in classes:
                 fline = k.sub(v, fline)
         flines[linenum] = fline + endline
-
+    for i in range(len(addlines)):
+        addlines[i] = special_dec(addlines[i])
+    for i in range(len(flines)):
+        flines[i] = special_dec(flines[i])
+    return addlines + flines
 
 def process_file(fname):
     if not fname.endswith('.gd'):
@@ -182,12 +390,10 @@ def process_file(fname):
     except:
         pass
     print ('PROCESSING %s' % fname)
-    flines = open(fname, 'rt', newline='').readlines()
-    addlines = []
+    flines = [l for l in open(fname, 'rt', newline='').readlines()]
     print ('actually doing %s' % fname)
-    process_lines(flines, addlines)
+    flines = process_lines(flines)
     wf = open(OUTPUT_DIR + "/" + fname, 'wt', newline='')
-    wf.writelines(addlines)
     wf.writelines(flines)
     wf.close()
         
@@ -205,7 +411,5 @@ if __name__=='__main__':
         process_path(dr)
     if len(sys.argv) <= 1:
         flines = sys.stdin.readlines()
-        addlines = []
-        process_lines(flines, addlines)
-        sys.stdout.writelines(addlines)
+        flines = process_lines(flines)
         sys.stdout.writelines(flines)
