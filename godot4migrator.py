@@ -78,7 +78,7 @@ replacements = [
 	('PhysicsShapeQueryParameters', 'PhysicsShapeQueryParameters3D'),
 	('PhysicsShapeQueryResult', 'PhysicsShapeQueryResult3D'),
 	(re.compile(r'\bARVR'), 'XR'),
-    (re.compile('(\s+)\.'), '\1super.'), ## Questionable.
+    (re.compile('(\s+)\.'), '\\1super.'), ## Questionable.
     ('make_convex_from_brothers', 'make_convex_from_siblings'),
     ('rand_range', 'randf_range'),
     ('stepify', 'snapped'),
@@ -205,8 +205,15 @@ def findcomment(fline):
 
 SPECIAL_PATTERN = re.compile("[\'\"\\\\\\[\\]\\(\\)\\{\\}#]")
 
-EXPORT_PAREN = re.compile(r"^( *)(\bexport *)?(?:\(([^)]*)\))?( *var *[^=:]*)(: [^ =]*)?( *=.*)?")
-SETGET_PATTERN = re.compile(r"(.*)\bsetget *([^,]*)(?:, *(.*))?$")
+EXPORT_PAREN = re.compile(r"^( *)(\bexport *)?(?:\(([^)]*)\))?( *var *[^=:]*)(: [^ =]*)?( *=[\s\S]*)?")
+SETGET_PATTERN = re.compile(r"(\s\S*)\bsetget *([^,]*)(?:, *(\s\S*))?$")
+EXTENDS_REGEX = re.compile(r"^(\bextends\b)(\s+)")
+
+
+ENUM_PATTERN = re.compile(r"(\s*)\benum([^{]+){\s+([^}]*)\s+}")
+DOCSTRING_PATTERN1 = re.compile(r'(\s*)"""([\s\S]*)"""')
+DOCSTRING_PATTERN2 = re.compile(r"(\s*)'''([\s\S]*)'''")
+
 '''
 OLD:
 export(Color) var bottom_left_color = Color() setget _set_bottom_left_color
@@ -299,6 +306,10 @@ def group_lines(flines):
             if next_sym == '}':
                 assert nesting_levels[-1] == '{'
                 nesting_levels.pop()
+            if next_sym == '\\' and next_sym_res.end() == len(line) - idx - 1:
+                # print("%d %d" % (next_sym_res.end(), len(line) - idx))
+                do_continue = True
+                break
         if do_continue or nesting_levels:
             cur_line += line
         else:
@@ -312,10 +323,11 @@ def group_lines(flines):
         outlines.append(cur_line)
     return outlines
 
-def process_lines(flines):
+def process_lines(fname, flines):
     flines = group_lines(flines)
     addlines = []
     extendsidx = -1
+    docstringid = 0
     extends_class = ''
     for linenum in range(len(flines)):
         fline = flines[linenum]
@@ -366,7 +378,81 @@ def process_lines(flines):
                         fline += nl
                 if getter:
                     fline += "\tget = " + getter + nl
-        if 'extends' in fline and extendsidx == -1:
+        dstringres = DOCSTRING_PATTERN1.match(fline)
+        if dstringres == None:
+            dstringres = DOCSTRING_PATTERN2.match(fline)
+        if dstringres != None:
+            fline = fline[:dstringres.end(1)] + ("const DOCSTRING%d = " % (docstringid)) + fline[dstringres.end(1):]
+            docstringid += 1
+            fline = ("\n" + dstringres[2]).replace("\n", "\n" + dstringres[1] + "## ")[1:]
+        enumres = ENUM_PATTERN.search(fline)
+        #print(fline + "************" )
+        if enumres != None:
+            enumstart = enumres.start(3)
+            enumend = enumres.end(3) - 1
+            enum_contents = enumres[3].split(',')
+            lastval = -1
+            new_enum_values = enumres[1] + "class " + enumres[2].replace('\\', '').replace('\n', '') + ":\n"
+            extraindent = '\t'
+            #print("res 2: "+  enumres[2])
+            if not enumres[2].strip():
+                new_enum_values = ''
+                extraindent = ''
+            for enumitem in enum_contents:
+                #commentidx = enumitem.find("#")
+                #endcommentidx = enumitem.find("\n", commentidx)
+                #enumcommentbegin = ''
+                #if commentidx != -1:
+                #    enumcommentbegin = enumitem[commentidx:endcommentidx]
+                #enumcommentend = ''
+                enumval = 0
+                enumline = ''
+                if not enumitem.strip():
+                    continue
+                if '=' in enumitem:
+                    enumitem, enumvalstr = enumitem.split('=', 1)
+                    commentidx = enumvalstr.find("#")
+                    if commentidx != -1:
+                        enumval = int(enumvalstr[:commentidx])
+                        extracomment = enumvalstr[commentidx:]
+                    else:
+                        enumval = int(enumvalstr)
+                    firstnl = enumitem.rfind("\n")
+                    if firstnl == -1:
+                        firstnl = 0
+                    beginidx = firstnl + (len(enumitem) - len(enumitem.lstrip()))
+                    #print(enumitem[beginidx:])
+                    enumline = enumitem[:firstnl] + enumres[1] + extraindent + "const " + enumitem[beginidx:] + "=" + enumvalstr + nl
+                    #print("%s %s %s %s %s %s" % (enumitem[:firstnl + 1], enumres[1], extraindent, "const ", enumitem[beginidx:],  enumvalstr + nl))
+                    #print(enumitem)
+                else:
+                    firstnl = enumitem.rfind("\n")
+                    if firstnl == -1:
+                        firstnl = 0
+                    enumval = lastval + 1
+                    beginidx = firstnl + (len(enumitem) - len(enumitem.lstrip()))
+                    #print("nohas= %d" % beginidx)
+                    #print(enumitem[beginidx:])
+                    enumline = enumres[1] + extraindent + "const " + enumitem[beginidx:] + "=" + str(enumval) + nl
+                lastval = enumval
+                new_enum_values += enumline
+            #new_enum_values += fline[enumend + 2:]
+            #print("replacing enum %s with %s" % (fline, new_enum_values))
+            fline = new_enum_values
+        extendsmatch = EXTENDS_REGEX.match(fline)
+        if extendsmatch != None and extendsidx == -1:
+            extends_off = extendsmatch.start(1)
+            if fname:
+                qoff = fline.find('"', extends_off)
+                if qoff == -1:
+                    qoff = fline.find("\'", extends_off)
+                if qoff != -1:
+                    qend = fline.find(fline[qoff], qoff + 1)
+                    includefn = special_dec(fline[qoff + 1: qend])
+                    if not includefn.startswith("res:"):
+                        includefn = "res://" + os.path.dirname(fname).replace("\\", "/") + "/" + includefn
+                        print("Changing %s to %s" % (fline, fline[:qoff + 1] + includefn + fline[qend:]))
+                        fline = fline[:qoff + 1] + includefn + fline[qend:] + " # " + fline[qoff + 1: qend]
             extendsidx = linenum
             extends_class = fline[fline.find('extends') + 7:].strip()
         elif fline.startswith('class_name'):
@@ -392,7 +478,7 @@ def process_file(fname):
     print ('PROCESSING %s' % fname)
     flines = [l for l in open(fname, 'rt', newline='').readlines()]
     print ('actually doing %s' % fname)
-    flines = process_lines(flines)
+    flines = process_lines(fname, flines)
     wf = open(OUTPUT_DIR + "/" + fname, 'wt', newline='')
     wf.writelines(flines)
     wf.close()
@@ -411,5 +497,5 @@ if __name__=='__main__':
         process_path(dr)
     if len(sys.argv) <= 1:
         flines = sys.stdin.readlines()
-        flines = process_lines(flines)
+        flines = process_lines('', flines)
         sys.stdout.writelines(flines)
