@@ -168,6 +168,8 @@ replacements = [
 	('toplevel', 'top_level'),
 	('zfar', 'far'),
 	('znear', 'near'),
+    ('invert', 'reverse'), # PackedByteArray and so on
+    (re.compile(r'\b(master|remote|remotesync|puppet)(\s*)func\b'), '@\\1\\2func'),
     ]
 
 
@@ -206,7 +208,7 @@ def findcomment(fline):
 SPECIAL_PATTERN = re.compile("[\'\"\\\\\\[\\]\\(\\)\\{\\}#]")
 
 EXPORT_PAREN = re.compile(r"^( *)(\bexport *)?(?:\(([^)]*)\))?( *var *[^=:]*)(: [^ =]*)?( *=[\s\S]*)?")
-SETGET_PATTERN = re.compile(r"(\s\S*)\bsetget *([^,]*)(?:, *(\s\S*))?$")
+SETGET_PATTERN = re.compile(r"([\s\S]*)\bsetget\s*([^,]*)(?:,\s*)?([\s\S]*)")
 EXTENDS_REGEX = re.compile(r"^(\bextends\b)(\s+)")
 
 
@@ -344,8 +346,8 @@ def process_lines(fname, flines):
         matchres = SETGET_PATTERN.match(fline)
         if matchres:
             exportfline = matchres[1]
-            setter = matchres[2]
-            getter = matchres[3]
+            setter = matchres[2].strip()
+            getter = matchres[3].strip()
         matchres = EXPORT_PAREN.match(exportfline)
         if matchres:
             whitespace = matchres[1]
