@@ -5,7 +5,6 @@ import re
 # TODO: Grep for add_compatibility_class and use those.
 
 replacements = [
-    ('addons/gdutil/', 'addons/gd_util/'),
     (re.compile(r'\bget_node(\s+)\((\s+)\@'), r'get_node\1(\2^'),
     ('Transform', 'Transform3D'),
     ('Reference', 'RefCounted'),
